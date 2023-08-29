@@ -1,4 +1,7 @@
 const TaskModel = require("../models/task.model");
+const { notFoundError, objectIdError } = require("../errors/mongodb.errors");
+const { notAllowedFieldsToUpdateErros } = require("../errors/general.errors");
+const { default: mongoose } = require("mongoose");
 
 class TaskController {
     constructor(req, res) {
@@ -30,11 +33,14 @@ class TaskController {
             const taskToDelete = await TaskModel.findById(id);
 
             if (!taskToDelete) {
-                this.res.status(404).send("Essa tarefa não foi encontrada!");
+                return notFoundError(this.res);
             }
             const deletedTask = await TaskModel.findByIdAndDelete(id);
             this.res.status(200).send(deletedTask);
         } catch (error) {
+            if (error instanceof mongoose.Error.CastError) {
+                return objectIdError(this.res);
+            }
             this.res.status(500).send(error.message);
         }
     }
@@ -45,10 +51,13 @@ class TaskController {
             const task = await TaskModel.findById(id);
 
             if (!task) {
-                this.res.status(404).send("Essa tarefa não foi encontrada!");
+                return notFoundError(this.res);
             }
             this.res.status(200).send(task);
         } catch (error) {
+            if (error instanceof mongoose.Error.CastError) {
+                return objectIdError(this.res);
+            }
             this.res.status(500).send(error.message);
         }
     }
@@ -59,13 +68,9 @@ class TaskController {
             const allowedUpdates = ["isCompleted"];
             const requestedUpdates = Object.keys(taskData);
 
-            for (update of requestedUpdates) {
+            for (const update of requestedUpdates) {
                 if (!allowedUpdates.includes(update)) {
-                    return this.res
-                        .status(500)
-                        .send(
-                            `O campo "${update}" ou mais campos inseridos não são editáveis! `
-                        );
+                    return notAllowedFieldsToUpdateErros(this.res);
                 }
             }
             const updataTask = await TaskModel.findOneAndUpdate(
@@ -78,6 +83,9 @@ class TaskController {
 
             this.res.status(200).send(updataTask);
         } catch (error) {
+            if (error instanceof mongoose.Error.CastError) {
+                return objectIdError(this.res);
+            }
             this.res.status(500).send(error.message);
         }
     }
